@@ -20,7 +20,7 @@ dotnet add package Hexmath
 ## Usage
 
 ```csharp
-using Hexmath.src.HexMath;
+using Hexmath;
 
 var metadata = new HexMetaData(Size: 32.0f, IsPointyTop: true);
 
