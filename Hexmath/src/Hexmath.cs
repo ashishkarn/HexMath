@@ -5,7 +5,7 @@
     using System.Linq;
     using System.Numerics;
 
-    namespace AutoBattlerGame.Utils
+    namespace HexMath
     {
         /// <summary>
         /// Core hex grid mathematical operations and coordinate transformations.
