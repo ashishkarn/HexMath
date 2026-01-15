@@ -7,7 +7,7 @@ namespace Hexmath
     /// Provides comprehensive functionality for working with hexagonal grids including
     /// coordinate conversions, distance calculations, pathfinding, and rotations.
     /// </summary>
-    public static class Hexmath
+    public static class HMath
     {
         #region Constants
 

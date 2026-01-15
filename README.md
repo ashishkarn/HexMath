@@ -25,16 +25,16 @@ using Hexmath;
 var metadata = new HexMetaData(Size: 32.0f, IsPointyTop: true);
 
 // Distance between hexes
-int dist = HexMath.Distance(hexA, hexB);
+int dist = HMath.Distance(hexA, hexB);
 
 // Get all neighbors
-var neighbors = HexMath.GetAllNeighbors(origin);
+var neighbors = HMath.GetAllNeighbors(origin);
 
 // Convert hex to pixel position
-Vector2 pixel = HexMath.HexToPixel(hex, metadata);
+Vector2 pixel = HMath.HexToPixel(hex, metadata);
 
 // Rotate around a pivot (2 steps = 120°)
-Vector3 rotated = HexMath.RotateBySteps(hex, pivot, steps: 2);
+Vector3 rotated = HMath.RotateBySteps(hex, pivot, steps: 2);
 ```
 
 ## Directions
