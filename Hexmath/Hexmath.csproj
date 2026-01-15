@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Title>HexMath</Title>
+    <Authors>Ashish Karn</Authors>
+    <Company>Ashish Karn</Company>
+    <Description>A fast math library to do hexagonal grid calculations.</Description>
+    <RepositoryUrl>https://github.com/ashishkarn/HexMath</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="obj\" />
+  </ItemGroup>
+
+</Project>
