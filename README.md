@@ -2,6 +2,12 @@
 
 A C# library for hexagonal grid mathematics using cube coordinates.
 
+## Installation
+
+```
+dotnet add package Hexmath
+```
+
 ## Features
 
 - Cube coordinate system (`Vector3` where q + r + s = 0)
