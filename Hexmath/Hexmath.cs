@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 
 namespace Hexmath
 {
@@ -12,6 +12,7 @@ namespace Hexmath
         #region Constants
 
         private static readonly float Sqrt3 = MathF.Sqrt(3.0f);
+        private const float Epsilon = 0.001f;
 
         /// <summary>
         /// Read-only collection of all six hexagonal direction vectors in clockwise order for flat-top hexagons.
@@ -39,7 +40,16 @@ namespace Hexmath
         /// <returns>The next direction vector, or null if the current direction is invalid</returns>
         public static Vector3? NextDirection(Vector3 currentDirection, bool clockwise = true)
         {
-            int index = Array.IndexOf(Directions.ToArray(), currentDirection);
+            int index = -1;
+            for (int i = 0; i < Directions.Count; i++)
+            {
+                if (Directions[i] == currentDirection)
+                {
+                    index = i;
+                    break;
+                }
+            }
+            
             if (index == -1) return null;
 
             int offset = clockwise ? 1 : -1;
@@ -54,10 +64,8 @@ namespace Hexmath
         /// <param name="direction">The direction vector to move in</param>
         /// <param name="distance">The number of hex steps to move (default: 1)</param>
         /// <returns>The hex coordinate at the specified position</returns>
-        public static Vector3 Neighbor(Vector3 origin, Vector3 direction, int distance = 1)
-        {
-            return origin + direction * distance;
-        }
+        public static Vector3 Neighbor(Vector3 origin, Vector3 direction, int distance = 1) 
+            => origin + direction * distance;
 
         /// <summary>
         /// Returns all 6 immediately adjacent hexes to the given origin hex.
@@ -70,9 +78,14 @@ namespace Hexmath
             return Directions.Select(dir => origin + dir);
         }
 
+        /// <summary>
+        /// Gets the closest hex direction to an arbitrary direction vector.
+        /// </summary>
+        /// <param name="direction">The direction vector to match</param>
+        /// <returns>The closest hex direction, or Vector3.Zero if direction is zero</returns>
         public static Vector3 GetClosestHexDirection(Vector3 direction)
         {
-            if (direction.LengthSquared() < 0.001f)
+            if (direction.LengthSquared() < Epsilon)
                 return Vector3.Zero;
 
             if (Directions.Contains(direction))
@@ -117,23 +130,24 @@ namespace Hexmath
                 // Floating point comparisons with slight tolerance is usually better, 
                 // but for integer-aligned hex grids, direct comparison often works if logic is clean.
                 // Using standard epsilon for robustness.
-                const float epsilon = 0.001f;
-
-                bool aligns = (MathF.Abs(diff.X * dir.Y - diff.Y * dir.X) < epsilon) &&
-                                (MathF.Abs(diff.Y * dir.Z - diff.Z * dir.Y) < epsilon) &&
-                                (MathF.Abs(diff.Z * dir.X - diff.X * dir.Z) < epsilon);
-
-                if (aligns)
-                {
-                    bool sameDirection = (Math.Sign(diff.X) == Math.Sign(dir.X) || dir.X == 0) &&
-                                            (Math.Sign(diff.Y) == Math.Sign(dir.Y) || dir.Y == 0) &&
-                                            (Math.Sign(diff.Z) == Math.Sign(dir.Z) || dir.Z == 0);
-
-                    if (sameDirection)
-                        return true;
-                }
+                if (IsCrossProductZero(diff, dir) && IsSameDirection(diff, dir))
+                    return true;
             }
             return false;
+        }
+
+        private static bool IsCrossProductZero(Vector3 a, Vector3 b)
+        {
+            return MathF.Abs(a.X * b.Y - a.Y * b.X) < Epsilon &&
+                   MathF.Abs(a.Y * b.Z - a.Z * b.Y) < Epsilon &&
+                   MathF.Abs(a.Z * b.X - a.X * b.Z) < Epsilon;
+        }
+
+        private static bool IsSameDirection(Vector3 diff, Vector3 dir)
+        {
+            return (Math.Sign(diff.X) == Math.Sign(dir.X) || dir.X == 0) &&
+                   (Math.Sign(diff.Y) == Math.Sign(dir.Y) || dir.Y == 0) &&
+                   (Math.Sign(diff.Z) == Math.Sign(dir.Z) || dir.Z == 0);
         }
 
         #endregion
@@ -158,6 +172,7 @@ namespace Hexmath
         public static IEnumerable<Vector3> GetRing(Vector3 origin, int radius)
         {
             if (radius <= 0) yield break;
+            
             Vector3 current = origin + Directions[4] * radius;
             for (int i = 0; i < 6; i++)
             {
@@ -180,6 +195,7 @@ namespace Hexmath
         {
             if (maxRadius < 0) yield break;
             if (includeOrigin) yield return origin;
+            
             for (int r = 1; r <= maxRadius; r++)
                 foreach (var hex in GetRing(origin, r))
                     yield return hex;
@@ -197,20 +213,22 @@ namespace Hexmath
         /// <returns>2D local position as Vector2</returns>
         public static Vector2 HexToPixel(Vector3 hex, HexMetaData metaData)
         {
+            float x, y;
+            
             if (metaData.IsPointyTop)
             {
                 // Pointy-top: x = sqrt(3) * q + sqrt(3)/2 * r, y = 3/2 * r
-                float x = (Sqrt3 * hex.X + Sqrt3 * 0.5f * hex.Y) * metaData.Size * metaData.HorizontalStretch;
-                float y = 1.5f * hex.Y * metaData.Size * metaData.VerticalStretch;
-                return new Vector2(x, y);
+                x = (Sqrt3 * hex.X + Sqrt3 * 0.5f * hex.Y) * metaData.Size * metaData.HorizontalStretch;
+                y = 1.5f * hex.Y * metaData.Size * metaData.VerticalStretch;
             }
             else
             {
                 // Flat-top: x = 3/2 * q, y = sqrt(3)/2 * q + sqrt(3) * r
-                float x = 1.5f * hex.X * metaData.Size * metaData.HorizontalStretch;
-                float y = (Sqrt3 * 0.5f * hex.X + Sqrt3 * hex.Y) * metaData.Size * metaData.VerticalStretch;
-                return new Vector2(x, y);
+                x = 1.5f * hex.X * metaData.Size * metaData.HorizontalStretch;
+                y = (Sqrt3 * 0.5f * hex.X + Sqrt3 * hex.Y) * metaData.Size * metaData.VerticalStretch;
             }
+            
+            return new Vector2(x, y);
         }
 
         /// <summary>
@@ -261,9 +279,12 @@ namespace Hexmath
             float dR = MathF.Abs(rR - fractionalHex.Y);
             float dS = MathF.Abs(rS - fractionalHex.Z);
 
-            if (dQ > dR && dQ > dS) rQ = -rR - rS;
-            else if (dR > dS) rR = -rQ - rS;
-            else rS = -rQ - rR;
+            if (dQ > dR && dQ > dS)
+                rQ = -rR - rS;
+            else if (dR > dS)
+                rR = -rQ - rS;
+            else
+                rS = -rQ - rR;
 
             return new Vector3(rQ, rR, rS);
         }
@@ -321,7 +342,7 @@ namespace Hexmath
             var pixelDirection = targetPixel - originPixel;
 
             // Handle case where target is at origin
-            if (pixelDirection.LengthSquared() < 0.001f) return origin;
+            if (pixelDirection.LengthSquared() < Epsilon) return origin;
 
             // System.Numerics: Vector2.Normalize
             var normalizedDir = Vector2.Normalize(pixelDirection);
@@ -363,6 +384,7 @@ namespace Hexmath
         {
             Vector3 relativePos = hexToRotate - origin;
             int normalizedSteps = ((steps % 6) + 6) % 6;
+            
             Vector3 rotatedRelativePos = normalizedSteps switch
             {
                 0 => relativePos,
@@ -373,6 +395,7 @@ namespace Hexmath
                 5 => new Vector3(-relativePos.Z, -relativePos.X, -relativePos.Y),
                 _ => relativePos
             };
+            
             return rotatedRelativePos + origin;
         }
 
@@ -420,7 +443,7 @@ namespace Hexmath
             {
                 // Replacement for Godot's IsEqualApprox. 
                 // Since hex coordinates usually end up as integers, a small epsilon is safe.
-                if (Vector3.DistanceSquared(relativeFrom, relativeTo) < 0.001f)
+                if (Vector3.DistanceSquared(relativeFrom, relativeTo) < Epsilon)
                 {
                     int ccwSteps = (6 - i) % 6;
                     return (i, ccwSteps);
@@ -440,20 +463,16 @@ namespace Hexmath
         /// </summary>
         /// <param name="coord">The coordinate to check.</param>
         /// <returns>True if Coordinate is a valid Hex Coordinate otherwise False.</returns>
-        public static bool IsValidHexCoordinate(Vector3 coord)
-        {
-            return MathF.Abs(coord.X + coord.Y + coord.Z) < 0.001f;
-        }
+        public static bool IsValidHexCoordinate(Vector3 coord) 
+            => MathF.Abs(coord.X + coord.Y + coord.Z) < Epsilon;
 
         /// <summary>
         /// Checks whether a Coordinate is a valid Hex Direction.
         /// </summary>
         /// <param name="coord">The coordinate to check.</param>
         /// <returns>True if Coordinate is a valid Hex Direction otherwise False.</returns>
-        public static bool IsValidHexDirection(Vector3 coord)
-        {
-            return Directions.Contains(coord);
-        }
+        public static bool IsValidHexDirection(Vector3 coord) 
+            => Directions.Contains(coord);
 
         #endregion
     }
@@ -474,4 +493,3 @@ namespace Hexmath
         float VerticalStretch = 1.0f
     );
 }
-
