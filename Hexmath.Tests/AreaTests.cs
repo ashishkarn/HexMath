@@ -1,10 +1,10 @@
-using System.Numerics;
-
 namespace Hexmath.Tests;
 
 public class AreaTests
 {
-    private static readonly Vector3 Origin = Vector3.Zero;
+    private static readonly HexCoord Origin = HexCoord.Zero;
+
+    #region GetRing
 
     [Theory]
     [InlineData(1, 6)]
@@ -47,13 +47,13 @@ public class AreaTests
     }
 
     [Fact]
-    public void GetRing_AllHexesAreValid()
+    public void GetRing_AllHexesSatisfyConstraint()
     {
         var ring = HMath.GetRing(Origin, 2);
 
         foreach (var hex in ring)
         {
-            Assert.True(HMath.IsValidHexCoordinate(hex));
+            Assert.Equal(0, hex.Q + hex.R + hex.S);
         }
     }
 
@@ -65,6 +65,24 @@ public class AreaTests
 
         Assert.Equal(ring.Count, distinct.Count);
     }
+
+    [Fact]
+    public void GetRing_FromNonOrigin_WorksCorrectly()
+    {
+        var center = new HexCoord(3, -2);
+        int radius = 2;
+        var ring = HMath.GetRing(center, radius).ToList();
+
+        Assert.Equal(12, ring.Count);
+        foreach (var hex in ring)
+        {
+            Assert.Equal(radius, HMath.Distance(center, hex));
+        }
+    }
+
+    #endregion
+
+    #region GetSpiral
 
     [Fact]
     public void GetSpiral_IncludesOrigin_WhenRequested()
@@ -83,11 +101,22 @@ public class AreaTests
     }
 
     [Theory]
-    [InlineData(0, true, 1)]   
-    [InlineData(1, true, 7)]   
-    [InlineData(2, true, 19)]  
-    [InlineData(3, true, 37)]  
+    [InlineData(0, true, 1)]
+    [InlineData(1, true, 7)]
+    [InlineData(2, true, 19)]
+    [InlineData(3, true, 37)]
     public void GetSpiral_ReturnsCorrectCount(int maxRadius, bool includeOrigin, int expectedCount)
+    {
+        var spiral = HMath.GetSpiral(Origin, maxRadius, includeOrigin).ToList();
+
+        Assert.Equal(expectedCount, spiral.Count);
+    }
+
+    [Theory]
+    [InlineData(1, false, 6)]
+    [InlineData(2, false, 18)]
+    [InlineData(3, false, 36)]
+    public void GetSpiral_WithoutOrigin_ReturnsCorrectCount(int maxRadius, bool includeOrigin, int expectedCount)
     {
         var spiral = HMath.GetSpiral(Origin, maxRadius, includeOrigin).ToList();
 
@@ -103,13 +132,13 @@ public class AreaTests
     }
 
     [Fact]
-    public void GetSpiral_AllHexesAreValid()
+    public void GetSpiral_AllHexesSatisfyConstraint()
     {
         var spiral = HMath.GetSpiral(Origin, 3);
 
         foreach (var hex in spiral)
         {
-            Assert.True(HMath.IsValidHexCoordinate(hex));
+            Assert.Equal(0, hex.Q + hex.R + hex.S);
         }
     }
 
@@ -125,7 +154,7 @@ public class AreaTests
     [Fact]
     public void GetSpiral_FromNonOrigin_WorksCorrectly()
     {
-        var center = new Vector3(5, -3, -2);
+        var center = new HexCoord(5, -3);
         var spiral = HMath.GetSpiral(center, 1, includeOrigin: true).ToList();
 
         Assert.Equal(7, spiral.Count);
@@ -136,4 +165,18 @@ public class AreaTests
             Assert.Equal(1, HMath.Distance(center, hex));
         }
     }
+
+    [Fact]
+    public void GetSpiral_AllHexesWithinMaxRadius()
+    {
+        int maxRadius = 4;
+        var spiral = HMath.GetSpiral(Origin, maxRadius).ToList();
+
+        foreach (var hex in spiral)
+        {
+            Assert.True(HMath.Distance(Origin, hex) <= maxRadius);
+        }
+    }
+
+    #endregion
 }
