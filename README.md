@@ -52,5 +52,4 @@ Six directions in clockwise order (flat-top):
 
 ## Requirements
 
-- .NET 6.0+
-- System.Numerics
+- .NET 8.0+
