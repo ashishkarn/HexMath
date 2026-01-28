@@ -489,7 +489,7 @@ namespace Hexmath
     (
         float Size = 1.0f,
         bool IsPointyTop = true,
-        float HorizontalStretch = 1.5f,
+        float HorizontalStretch = 1.0f,
         float VerticalStretch = 1.0f
     );
 }
