@@ -1,5 +1,3 @@
-using System.Numerics;
-
 namespace Hexmath.Tests;
 
 public class HexDirectionTests

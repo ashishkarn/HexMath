@@ -50,6 +50,12 @@ namespace Hexmath
         /// </summary>
         public Vector3 ToVector3() => new(Q, R, S);
 
+        /// <summary>
+        /// Creates a HexCoord from a Vector3, using X as Q and Y as R.
+        /// The Z component is ignored (S is computed from Q and R).
+        /// </summary>
+        public static HexCoord FromVector3(Vector3 vec) => new((int)vec.X, (int)vec.Y);
+
         // Equality
         public bool Equals(HexCoord other) => Q == other.Q && R == other.R;
 
@@ -355,7 +361,7 @@ namespace Hexmath
         /// <param name="q">Fractional Q coordinate</param>
         /// <param name="r">Fractional R coordinate</param>
         /// <returns>Rounded hex coordinates</returns>
-        public static HexCoord RoundToHex(float q, float r)
+        internal static HexCoord RoundToHex(float q, float r)
         {
             float s = -q - r;
 
