@@ -4,26 +4,46 @@ namespace Hexmath.Tests;
 
 public class ConversionTests
 {
-    [Theory]
-    [InlineData(0.1f, 0.1f, -0.2f)]
-    [InlineData(2.7f, -1.3f, -1.4f)]
-    [InlineData(-0.5f, 0.5f, 0.0f)]
-    public void RoundToHex_AlwaysMaintainsConstraint(float x, float y, float z)
-    {
-        var fractional = new Vector3(x, y, z);
-        var rounded = HMath.RoundToHex(fractional);
+    #region RoundToHex
 
-        Assert.True(HMath.IsValidHexCoordinate(rounded));
+    [Theory]
+    [InlineData(0.1f, 0.1f)]
+    [InlineData(2.7f, -1.3f)]
+    [InlineData(-0.5f, 0.5f)]
+    public void RoundToHex_AlwaysMaintainsConstraint(float q, float r)
+    {
+        var rounded = HMath.RoundToHex(q, r);
+
+        Assert.Equal(0, rounded.Q + rounded.R + rounded.S);
     }
 
     [Fact]
     public void RoundToHex_IntegerInput_ReturnsSame()
     {
-        var integer = new Vector3(2, -1, -1);
-        var rounded = HMath.RoundToHex(integer);
+        var rounded = HMath.RoundToHex(2.0f, -1.0f);
 
-        Assert.Equal(integer, rounded);
+        Assert.Equal(2, rounded.Q);
+        Assert.Equal(-1, rounded.R);
+        Assert.Equal(-1, rounded.S);
     }
+
+    [Theory]
+    [InlineData(1.4f, -0.6f, 1, 0)]      // Rounds to nearest valid hex
+    [InlineData(-2.2f, 1.1f, -2, 1)]
+    [InlineData(0.0f, 0.0f, 0, 0)]
+    [InlineData(0.9f, 0.1f, 1, 0)]       // Near (1, 0)
+    [InlineData(-0.9f, -0.1f, -1, 0)]    // Near (-1, 0)
+    public void RoundToHex_RoundsToNearestHex(float q, float r, int expectedQ, int expectedR)
+    {
+        var rounded = HMath.RoundToHex(q, r);
+
+        Assert.Equal(expectedQ, rounded.Q);
+        Assert.Equal(expectedR, rounded.R);
+    }
+
+    #endregion
+
+    #region HexToPixel
 
     [Theory]
     [InlineData(false)] // FlatTop
@@ -31,31 +51,57 @@ public class ConversionTests
     public void HexToPixel_Origin_ReturnsZero(bool isPointyTop)
     {
         var meta = new HexMetaData(Size: 1.0f, IsPointyTop: isPointyTop);
-        var pixel = HMath.HexToPixel(Vector3.Zero, meta);
+        var pixel = HMath.HexToPixel(HexCoord.Zero, meta);
 
         Assert.Equal(0, pixel.X, precision: 3);
         Assert.Equal(0, pixel.Y, precision: 3);
     }
 
-    [Theory]
-    [InlineData(0, 0, 0, false)]     // Origin, FlatTop
-    [InlineData(0, 0, 0, true)]      // Origin, PointyTop
-    [InlineData(1, 0, -1, false)]    // FlatTop
-    [InlineData(1, 0, -1, true)]     // PointyTop
-    [InlineData(-2, 3, -1, false)]   // FlatTop
-    [InlineData(-2, 3, -1, true)]    // PointyTop
-    [InlineData(5, -3, -2, false)]   // FlatTop
-    [InlineData(5, -3, -2, true)]    // PointyTop
-    public void PixelToHex_RoundTrip(float x, float y, float z, bool isPointyTop)
+    [Fact]
+    public void HexToPixel_FlatTop_EastNeighbor()
     {
-        var original = new Vector3(x, y, z);
+        var meta = new HexMetaData(Size: 1.0f, IsPointyTop: false);
+        var hex = new HexCoord(1, 0);
+
+        var pixel = HMath.HexToPixel(hex, meta);
+
+        Assert.True(pixel.X > 0);
+    }
+
+    [Fact]
+    public void HexToPixel_PointyTop_EastNeighbor()
+    {
+        var meta = new HexMetaData(Size: 1.0f, IsPointyTop: true);
+        var hex = new HexCoord(1, 0);
+
+        var pixel = HMath.HexToPixel(hex, meta);
+
+        Assert.True(pixel.X > 0);
+    }
+
+    #endregion
+
+    #region PixelToHex
+
+    [Theory]
+    [InlineData(0, 0, false)]      // Origin, FlatTop
+    [InlineData(0, 0, true)]       // Origin, PointyTop
+    [InlineData(1, 0, false)]      // FlatTop
+    [InlineData(1, 0, true)]       // PointyTop
+    [InlineData(-2, 3, false)]     // FlatTop
+    [InlineData(-2, 3, true)]      // PointyTop
+    [InlineData(5, -3, false)]     // FlatTop
+    [InlineData(5, -3, true)]      // PointyTop
+    public void PixelToHex_RoundTrip(int q, int r, bool isPointyTop)
+    {
+        var original = new HexCoord(q, r);
         var meta = new HexMetaData(Size: 1.0f, IsPointyTop: isPointyTop);
         var pixel = HMath.HexToPixel(original, meta);
         var roundTrip = HMath.PixelToHex(pixel, meta);
 
-        Assert.Equal(original.X, roundTrip.X, precision: 3);
-        Assert.Equal(original.Y, roundTrip.Y, precision: 3);
-        Assert.Equal(original.Z, roundTrip.Z, precision: 3);
+        Assert.Equal(original.Q, roundTrip.Q);
+        Assert.Equal(original.R, roundTrip.R);
+        Assert.Equal(original.S, roundTrip.S);
     }
 
     [Fact]
@@ -64,76 +110,69 @@ public class ConversionTests
         var zeroSizeMeta = new HexMetaData(Size: 0);
         var result = HMath.PixelToHex(new Vector2(100, 100), zeroSizeMeta);
 
-        Assert.Equal(Vector3.Zero, result);
+        Assert.Equal(HexCoord.Zero, result);
     }
 
-    [Fact]
-    public void ToAxial_ExtractsQR()
+    [Theory]
+    [InlineData(1.0f)]
+    [InlineData(2.0f)]
+    [InlineData(0.5f)]
+    public void PixelToHex_DifferentSizes_RoundTrip(float size)
     {
-        var cube = new Vector3(2, -1, -1);
-        var axial = HMath.ToAxial(cube);
+        var original = new HexCoord(3, -2);
+        var meta = new HexMetaData(Size: size);
+        var pixel = HMath.HexToPixel(original, meta);
+        var roundTrip = HMath.PixelToHex(pixel, meta);
 
-        Assert.Equal(2, axial.X);
-        Assert.Equal(-1, axial.Y);
+        Assert.Equal(original, roundTrip);
     }
 
-    [Fact]
-    public void ToCube_CreatesValidHex()
-    {
-        var axial = new Vector2(2, -1);
-        var cube = HMath.ToCube(axial);
+    #endregion
 
-        Assert.Equal(2, cube.X);
-        Assert.Equal(-1, cube.Y);
-        Assert.Equal(-1, cube.Z);
-        Assert.True(HMath.IsValidHexCoordinate(cube));
-    }
-
-    [Fact]
-    public void ToAxial_ToCube_RoundTrip()
-    {
-        var original = new Vector3(3, -2, -1);
-        var axial = HMath.ToAxial(original);
-        var cube = HMath.ToCube(axial);
-
-        Assert.Equal(original, cube);
-    }
+    #region GetHexAtDistance
 
     [Fact]
     public void GetHexAtDistance_ReturnsCorrectHex()
     {
-        var origin = Vector3.Zero;
-        var east = HMath.Directions[0];
+        var origin = HexCoord.Zero;
 
-        var result = HMath.GetHexAtDistance(origin, east, 3);
+        var result = HMath.GetHexAtDistance(origin, HexDirection.East, 3);
 
-        Assert.Equal(new Vector3(3, 0, -3), result);
+        Assert.Equal(new HexCoord(3, 0), result);
+        Assert.Equal(-3, result.S);
     }
 
     [Fact]
     public void GetHexAtDistance_ZeroDistance_ReturnsOrigin()
     {
-        var origin = new Vector3(1, -1, 0);
-        var east = HMath.Directions[0];
+        var origin = new HexCoord(1, -1);
 
-        var result = HMath.GetHexAtDistance(origin, east, 0);
+        var result = HMath.GetHexAtDistance(origin, HexDirection.East, 0);
 
         Assert.Equal(origin, result);
     }
 
-    [Fact]
-    public void GetHexAtDistance_InvalidDirection_ThrowsException()
+    [Theory]
+    [InlineData(HexDirection.East, 2, 2, 0)]
+    [InlineData(HexDirection.West, 2, -2, 0)]
+    [InlineData(HexDirection.SouthEast, 3, 3, -3)]
+    [InlineData(HexDirection.NorthWest, 3, -3, 3)]
+    public void GetHexAtDistance_AllDirections(HexDirection direction, int distance, int expectedQ, int expectedR)
     {
-        var origin = Vector3.Zero;
-        var invalid = new Vector3(2, 0, -2);
+        var result = HMath.GetHexAtDistance(HexCoord.Zero, direction, distance);
 
-        Assert.Throws<ArgumentException>(() => HMath.GetHexAtDistance(origin, invalid, 1));
+        Assert.Equal(expectedQ, result.Q);
+        Assert.Equal(expectedR, result.R);
     }
+
+    #endregion
+
+    #region GetHexAtPixelDistance
 
     [Fact]
     public void GetHexAtPixelDistance_ZeroDistance_ReturnsOrigin()
     {
-        var origin = new Vector3(2, -1, -1);
+        var origin = new HexCoord(2, -1);
         var meta = new HexMetaData(Size: 1.0f);
         var targetPixel = new Vector2(100, 100);
 
@@ -145,7 +184,7 @@ public class ConversionTests
     [Fact]
     public void GetHexAtPixelDistance_TargetAtOrigin_ReturnsOrigin()
     {
-        var origin = Vector3.Zero;
+        var origin = HexCoord.Zero;
         var meta = new HexMetaData(Size: 1.0f);
         var originPixel = HMath.HexToPixel(origin, meta);
 
@@ -154,27 +193,15 @@ public class ConversionTests
         Assert.Equal(origin, result);
     }
 
-    [Fact]
-    public void GetHexAtPixelDistance_ReturnsValidHex()
-    {
-        var origin = Vector3.Zero;
-        var meta = new HexMetaData(Size: 1.0f);
-        var targetPixel = new Vector2(50, 25);
-
-        var result = HMath.GetHexAtPixelDistance(origin, targetPixel, 2, meta);
-
-        Assert.True(HMath.IsValidHexCoordinate(result));
-    }
-
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void GetHexAtPixelDistance_MovesTowardTarget(bool isPointyTop)
     {
-        var origin = Vector3.Zero;
+        var origin = HexCoord.Zero;
         var meta = new HexMetaData(Size: 1.0f, IsPointyTop: isPointyTop);
-        var east = HMath.Directions[0];
-        var eastPixel = HMath.HexToPixel(east * 10, meta);
+        var eastHex = new HexCoord(10, 0);
+        var eastPixel = HMath.HexToPixel(eastHex, meta);
 
         var result = HMath.GetHexAtPixelDistance(origin, eastPixel, 1, meta);
 
@@ -184,7 +211,7 @@ public class ConversionTests
     [Fact]
     public void GetHexAtPixelDistance_NegativeDistance_ReturnsOrigin()
     {
-        var origin = new Vector3(1, -1, 0);
+        var origin = new HexCoord(1, -1);
         var meta = new HexMetaData(Size: 1.0f);
         var targetPixel = new Vector2(100, 100);
 
@@ -192,4 +219,19 @@ public class ConversionTests
 
         Assert.Equal(origin, result);
     }
+
+    [Fact]
+    public void GetHexAtPixelDistance_ReturnsValidHex()
+    {
+        var origin = HexCoord.Zero;
+        var meta = new HexMetaData(Size: 1.0f);
+        var targetPixel = new Vector2(50, 25);
+
+        var result = HMath.GetHexAtPixelDistance(origin, targetPixel, 2, meta);
+
+        // HexCoord constraint is always valid by construction
+        Assert.Equal(0, result.Q + result.R + result.S);
+    }
+
+    #endregion
 }
